@@ -1,0 +1,114 @@
+# app.py
+import streamlit as st
+import pandas as pd
+from utils import load_and_prepare_data, train_prediction_models
+
+st.set_page_config(
+    page_title="FIFA Predictor",
+    page_icon="ball.jpg",  # <--- Point it directly to your image file
+    layout="centered"
+)
+
+# Set up a clean, mobile-friendly interface
+st.set_page_config(page_title="FIFA Predictor", layout="centered")
+
+st.title("FIFA Predictor")
+
+# Load data fresh on every interaction
+df_scores = load_and_prepare_data("scores.csv")
+
+# Create two clean tabs for your phone
+tab1, tab2 = st.tabs(["📊 Predict Match", "📝 Update Result"])
+
+# ==========================================
+# TAB 1: PREDICTOR
+# ==========================================
+with tab1:
+    st.header("Predict a Matchup")
+    
+    # Extract unique teams dynamically for mobile dropdown menus
+    available_teams = sorted(pd.concat([df_scores["Team_A_Name"], df_scores["Team_B_Name"]]).unique())
+    
+    team_a = st.selectbox("Select Team A:", available_teams, index=0)
+    team_b = st.selectbox("Select Team B:", available_teams, index=1)
+    
+    if st.button("Generate Prediction", type="primary"):
+        match_row = df_scores[(df_scores["Team_A_Name"] == team_a) & (df_scores["Team_B_Name"] == team_b)]
+        
+        if match_row.empty:
+            st.error(f"❌ Matchup '{team_a} vs {team_b}' not found in schedule.")
+        else:
+            # Check ranks and handle fallback fields if missing (NaN)
+            rank_a = match_row["prior_to_game_Rank_Team_A"].iloc[0]
+            rank_b = match_row["prior_to_game_Rank_Team_B"].iloc[0]
+            
+            if pd.isna(rank_a):
+                rank_a = st.number_input(f"⚠️ Rank for {team_a} missing. Enter here:", value=10.0)
+            if pd.isna(rank_b):
+                rank_b = st.number_input(f"⚠️ Rank for {team_b} missing. Enter here:", value=10.0)
+                
+            rank_diff = abs(rank_a - rank_b)
+            unplayed_match = pd.DataFrame([[rank_a, rank_b, rank_diff]], 
+                                          columns=["prior_to_game_Rank_Team_A", "prior_to_game_Rank_Team_B", "Rank_diff"])
+            
+            # Re-train models dynamically in background and predict
+            model_A, model_B = train_prediction_models(df_scores)
+            pred_A = round(model_A.predict(unplayed_match)[0])
+            pred_B = round(model_B.predict(unplayed_match)[0])
+            
+            # Clean results grid for mobile viewing
+            st.markdown("---")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric(label=f"{team_a} (Rank {int(rank_a)})", value=f"{pred_A} pts")
+            with col2:
+                st.metric(label=f"{team_b} (Rank {int(rank_b)})", value=f"{pred_B} pts")
+            st.markdown("---")
+
+# ==========================================
+# TAB 2: UPDATER
+# ==========================================
+with tab2:
+    st.header("Log Game Outcome")
+    
+    u_team_a = st.selectbox("Team A Who Played:", available_teams, key="ut_a")
+    u_team_b = st.selectbox("Team B Who Played:", available_teams, key="ut_b")
+    
+    score_a = st.number_input(f"{u_team_a} Final Score:", min_value=0, step=1, value=0, key="score_a_input")
+    score_b = st.number_input(f"{u_team_b} Final Score:", min_value=0, step=1, value=0, key="score_b_input")
+    
+    # Optional rank update inputs
+    new_rank_a = st.text_input(f"New rank for {u_team_a} (Leave blank to keep current):", key="rank_a_input").strip()
+    new_rank_b = st.text_input(f"New rank for {u_team_b} (Leave blank to keep current):", key="rank_b_input").strip()
+    
+    if st.button("Save Game to CSV"):
+        match_mask = (df_scores["Team_A_Name"] == u_team_a) & (df_scores["Team_B_Name"] == u_team_b)
+        
+        if not df_scores[match_mask].empty:
+            row_index = df_scores[match_mask].index[0]
+            
+            # Log the fresh scores
+            df_scores.loc[row_index, "Score_Team_A"] = score_a
+            df_scores.loc[row_index, "Score_Team_B"] = score_b
+            
+            # Process potential rank changes or flag if data is missing completely
+            if new_rank_a:
+                df_scores.loc[row_index, "prior_to_game_Rank_Team_A"] = float(new_rank_a)
+            elif pd.isna(df_scores.loc[row_index, "prior_to_game_Rank_Team_A"]):
+                st.error(f"❌ Rank for {u_team_a} is missing in CSV. You must type a rank to save.")
+                st.stop()
+                
+            if new_rank_b:
+                df_scores.loc[row_index, "prior_to_game_Rank_Team_B"] = float(new_rank_b)
+            elif pd.isna(df_scores.loc[row_index, "prior_to_game_Rank_Team_B"]):
+                st.error(f"❌ Rank for {u_team_b} is missing in CSV. You must type a rank to save.")
+                st.stop()
+            
+            # Clean structure and write changes back to local scores.csv
+            cols_to_drop = ['Score_diff', 'Rank_diff', 'Team_A_Name', 'Team_B_Name']
+            df_to_save = df_scores.drop(columns=[c for c in cols_to_drop if c in df_scores.columns])
+            df_to_save.to_csv("scores.csv", index=False)
+            
+            st.success(f"💾 Results Saved! {u_team_a} {score_a} - {score_b} {u_team_b}. Models will auto-update on next prediction.")
+        else:
+            st.error("❌ Matchup not found in your schedule database.")
