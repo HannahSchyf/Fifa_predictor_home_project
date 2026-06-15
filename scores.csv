@@ -23,7 +23,7 @@ Round,Game,Match,Score_Team_A,Score_Team_B,prior_to_game_Rank_Team_A,prior_to_ga
 1,22,ENG_vs_CRO,,,,
 1,23,GHA_vs_PAN,,,,
 1,24,UZB_vs_COL,,,,
-2,1,CZE_vs_RSA,6.0,0.0,13.0,67.0
+2,1,CZE_vs_RSA,,,,
 2,2,SUI_vs_BHI,,,,
 2,3,CAN_vs_QAT,,,,
 2,4,MEX_vs_KOR,,,,
