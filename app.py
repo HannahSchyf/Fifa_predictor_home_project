@@ -20,7 +20,7 @@ with col1:
 with col2:
     st.title("FIFA Match Predictor & Updater")
 
-st.write("Predict upcoming tournament fixtures or log final match scores.")
+st.write("Predict upcoming tournament match scores.")
 st.markdown("---")
 
 # Load data fresh on every page load
@@ -40,38 +40,70 @@ with tab1:
     team_a = st.selectbox("Select Team A:", available_teams, index=0)
     team_b = st.selectbox("Select Team B:", available_teams, index=1)
     
-    if st.button("Generate Prediction", type="primary"):
-        match_row = df_scores[(df_scores["Team_A_Name"] == team_a) & (df_scores["Team_B_Name"] == team_b)]
+    match_row = df_scores[(df_scores["Team_A_Name"] == team_a) & (df_scores["Team_B_Name"] == team_b)]
+    
+    if match_row.empty:
+        st.error(f"❌ Matchup '{team_a} vs {team_b}' not found in schedule.")
+    else:
+        # Get the row index so we know exactly where to save in the CSV
+        row_idx = match_row.index[0]
+        csv_rank_a = df_scores.loc[row_idx, "prior_to_game_Rank_Team_A"]
+        csv_rank_b = df_scores.loc[row_idx, "prior_to_game_Rank_Team_B"]
         
-        if match_row.empty:
-            st.error(f"❌ Matchup '{team_a} vs {team_b}' not found in schedule.")
+        # Track whether we need to block the prediction engine to collect missing data
+        missing_data = False
+        
+        # Handle Team A missing ranking
+        if pd.isna(csv_rank_a):
+            missing_data = True
+            new_a = st.number_input(f"⚠️ Rank for {team_a} missing. Enter to save:", value=10.0, key=f"fb_rank_{team_a}")
+            if st.button(f"💾 Save Rank for {team_a}", key=f"save_btn_{team_a}"):
+                df_scores.loc[row_idx, "prior_to_game_Rank_Team_A"] = float(new_a)
+                # Keep original data structure intact for the CSV save
+                cols_to_drop = ['Score_diff', 'Rank_diff', 'Team_A_Name', 'Team_B_Name']
+                df_to_save = df_scores.drop(columns=[c for c in cols_to_drop if c in df_scores.columns])
+                df_to_save.to_csv("scores.csv", index=False)
+                st.success(f"Saved {team_a} rank!")
+                st.rerun()
         else:
-            # Check ranks and handle fallback fields if missing (NaN)
-            rank_a = match_row["prior_to_game_Rank_Team_A"].iloc[0]
-            rank_b = match_row["prior_to_game_Rank_Team_B"].iloc[0]
+            rank_a = csv_rank_a
             
-            if pd.isna(rank_a):
-                rank_a = st.number_input(f"⚠️ Rank for {team_a} missing. Enter here:", value=10.0)
-            if pd.isna(rank_b):
-                rank_b = st.number_input(f"⚠️ Rank for {team_b} missing. Enter here:", value=10.0)
+        # Handle Team B missing ranking
+        if pd.isna(csv_rank_b):
+            missing_data = True
+            new_b = st.number_input(f"⚠️ Rank for {team_b} missing. Enter to save:", value=10.0, key=f"fb_rank_{team_b}")
+            if st.button(f"💾 Save Rank for {team_b}", key=f"save_btn_{team_b}"):
+                df_scores.loc[row_idx, "prior_to_game_Rank_Team_B"] = float(new_b)
+                cols_to_drop = ['Score_diff', 'Rank_diff', 'Team_A_Name', 'Team_B_Name']
+                df_to_save = df_scores.drop(columns=[c for c in cols_to_drop if c in df_scores.columns])
+                df_to_save.to_csv("scores.csv", index=False)
+                st.success(f"Saved {team_b} rank!")
+                st.rerun()
+        else:
+            rank_b = csv_rank_b
+
+        # Display interface blocks based on data state
+        if missing_data:
+            st.warning("Please fill in and save the missing rankings above to generate a prediction.")
+        else:
+            if st.button("Generate Prediction", type="primary", key="main_prediction_btn"):
+                rank_diff = abs(rank_a - rank_b)
+                unplayed_match = pd.DataFrame([[rank_a, rank_b, rank_diff]], 
+                                              columns=["prior_to_game_Rank_Team_A", "prior_to_game_Rank_Team_B", "Rank_diff"])
                 
-            rank_diff = abs(rank_a - rank_b)
-            unplayed_match = pd.DataFrame([[rank_a, rank_b, rank_diff]], 
-                                          columns=["prior_to_game_Rank_Team_A", "prior_to_game_Rank_Team_B", "Rank_diff"])
-            
-            # Re-train models dynamically in background and predict
-            model_A, model_B = train_prediction_models(df_scores)
-            pred_A = round(model_A.predict(unplayed_match)[0])
-            pred_B = round(model_B.predict(unplayed_match)[0])
-            
-            # Clean results grid for mobile viewing
-            st.markdown("---")
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric(label=f"{team_a} (Rank {int(rank_a)})", value=f"{pred_A} pts")
-            with col2:
-                st.metric(label=f"{team_b} (Rank {int(rank_b)})", value=f"{pred_B} pts")
-            st.markdown("---")
+                # Re-train models dynamically in background and predict
+                model_A, model_B = train_prediction_models(df_scores)
+                pred_A = round(model_A.predict(unplayed_match)[0])
+                pred_B = round(model_B.predict(unplayed_match)[0])
+                
+                # Clean results metrics grid
+                st.markdown("---")
+                res_col1, res_col2 = st.columns(2)
+                with res_col1:
+                    st.metric(label=f"{team_a} (Rank {int(rank_a)})", value=f"{pred_A} pts")
+                with res_col2:
+                    st.metric(label=f"{team_b} (Rank {int(rank_b)})", value=f"{pred_B} pts")
+                st.markdown("---")
 
 # ==========================================
 # TAB 2: UPDATER
@@ -117,7 +149,8 @@ with tab2:
             df_to_save = df_scores.drop(columns=[c for c in cols_to_drop if c in df_scores.columns])
             df_to_save.to_csv("scores.csv", index=False)
             
-            st.success(f"💾 Results Saved! {u_team_a} {score_a} - {score_b} {u_team_b}. Models will auto-update on next prediction.")
+            st.success(f"💾 Results Saved! {u_team_a} {score_a} - {score_b} {u_team_b}.")
+            st.rerun()
         else:
             st.error("❌ Matchup not found in your schedule database.")
 
