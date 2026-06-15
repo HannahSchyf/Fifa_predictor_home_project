@@ -1,25 +1,33 @@
 # app.py
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
 from utils import load_and_prepare_data, train_prediction_models
 
+# 1. Setup the browser tab configuration
 st.set_page_config(
-    page_title="FIFA Predictor",
-    page_icon="ball.jpg",  # <--- Point it directly to your image file
-    layout="centered"
+    page_title="FIFA Match Predictor", page_icon="icon.jpg", layout="centered"
 )
 
-# Set up a clean, mobile-friendly interface
-st.set_page_config(page_title="FIFA Predictor", layout="centered")
+# ==========================================
+# 🏆 APP MAIN INTERFACE 
+# ==========================================
 
-st.title("FIFA Predictor")
+# Create side-by-side columns for the JPG and Title text
+col1, col2 = st.columns([1, 4])
+with col1:
+    st.image("ball.jpg", width=75)
+with col2:
+    st.title("FIFA Match Predictor & Updater")
 
-# Load data fresh on every interaction
+st.write("Predict upcoming tournament fixtures or log final match scores.")
+st.markdown("---")
+
+# Load data fresh on every page load
 df_scores = load_and_prepare_data("scores.csv")
 
-# Create two clean tabs for your phone
-tab1, tab2 = st.tabs(["📊 Predict Match", "📝 Update Result"])
-
+# Create clean tabs for mobile switching
+tab1, tab2, tab3 = st.tabs(["🔮 Predict Match", "📝 Update Result", "📊 View Analytics"])
 # ==========================================
 # TAB 1: PREDICTOR
 # ==========================================
@@ -112,3 +120,74 @@ with tab2:
             st.success(f"💾 Results Saved! {u_team_a} {score_a} - {score_b} {u_team_b}. Models will auto-update on next prediction.")
         else:
             st.error("❌ Matchup not found in your schedule database.")
+
+# ==========================================
+# TAB 3: VISUALIZATIONS & PLOTS (CLEAN VERSION)
+# ==========================================
+with tab3:
+    st.header("📊 Historical Performance Analytics")
+    st.write("Visual relationship between score margins and pre-game ranking differences.")
+
+    # 1. Drop missing values safely
+    plot_df = df_scores.dropna(subset=["Score_diff", "Rank_diff"])
+
+    if plot_df.empty:
+        st.info("💡 Not enough played match data to display the analytics yet.")
+    else:
+        # 2. Modern Design Init
+        plt.style.use("seaborn-v0_8-whitegrid" if "seaborn-v0_8-whitegrid" in plt.style.available else "default")
+        
+        fig, ax = plt.subplots(figsize=(10, 6.5))
+        fig.patch.set_facecolor('#ffffff')  # Matches clean web backgrounds
+        ax.set_facecolor('#f8f9fa')         # Light grey canvas background
+
+        # 3. Dynamic Color Mapping: Color dots by match outcome
+        colors = ['#1f77b4' if x > 0 else '#fc4f30' for x in plot_df["Score_diff"]]
+
+        # 4. Draw the base scatter plot with shadows and larger markers
+        scatter = ax.scatter(
+            plot_df["Score_diff"], 
+            plot_df["Rank_diff"], 
+            c=colors, 
+            edgecolors="#2b2b2b", 
+            s=120,                  
+            alpha=0.85, 
+            linewidths=1.2,
+            zorder=3                
+        )
+
+        # 5. Add a bold center line at 0 for Score Difference
+        ax.axvline(x=0, color='#6c757d', linestyle='-', linewidth=1.5, alpha=0.7, zorder=2)
+        
+        # 6. Loop and annotate labels with modern offsets
+        for score, rank, match in zip(plot_df["Score_diff"], plot_df["Rank_diff"], plot_df["Match"]):
+            offset = 0.18 if score >= 0 else -0.18
+            align = 'left' if score >= 0 else 'right'
+            
+            ax.text(
+                score + offset, 
+                rank, 
+                f" {match} ", 
+                fontsize=9.5, 
+                fontweight="medium",
+                color="#212529",
+                alpha=0.9, 
+                verticalalignment='center',
+                horizontalalignment=align,
+                bbox=dict(boxstyle="round,pad=0.2", fc="#ffffff", ec="#e0e0e0", lw=0.8, alpha=0.85)
+            )
+
+        # 7. Premium Styling & Typography
+        ax.set_xlabel("Score Difference", fontsize=12, fontweight="bold", labelpad=10, color="#1a1a1a")
+        ax.set_ylabel("Rank Difference", fontsize=12, fontweight="bold", labelpad=10, color="#1a1a1a")
+        ax.set_title("Match Performance vs Rank Disparity", fontsize=15, fontweight="bold", pad=20, color="#111111")
+        
+        # Customize gridlines to look minimal and elegant
+        ax.grid(True, linestyle=":", alpha=0.6, color="#cccccc")
+        
+        # Remove harsh outer box borders
+        for spine in ["top", "right", "left", "bottom"]:
+            ax.spines[spine].set_visible(False)
+
+        # 8. Render to Streamlit dashboard
+        st.pyplot(fig)
