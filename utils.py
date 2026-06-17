@@ -1,7 +1,7 @@
 # utils.py
 import pandas as pd
 from sklearn.linear_model import LinearRegression
-
+from catboost import CatBoostRegressor
 
 def load_and_prepare_data(csv_path="scores.csv"):
     """Loads the dataset, calculates differences, splits teams, and returns the DataFrame."""
@@ -31,18 +31,37 @@ def load_and_prepare_data(csv_path="scores.csv"):
         raise
 
 
+# def train_prediction_models(df_scores):
+#     """Trains LinearRegression models on played games and returns them."""
+#     played_games = df_scores[df_scores["Score_Team_A"].notna()]
+
+#     X_train = played_games[
+#         ["prior_to_game_Rank_Team_A", "prior_to_game_Rank_Team_B", "Rank_diff"]
+#     ]
+#     y_A = played_games["Score_Team_A"]
+#     y_B = played_games["Score_Team_B"]
+
+#     model_A = LinearRegression().fit(X_train, y_A)
+#     model_B = LinearRegression().fit(X_train, y_B)
+#     return model_A, model_B
+
 def train_prediction_models(df_scores):
-    """Trains LinearRegression models on played games and returns them."""
+    """Trains CatBoostRegressor models natively handling categorical team names."""
     played_games = df_scores[df_scores["Score_Team_A"].notna()]
 
+    # Included team names as features for CatBoost
     X_train = played_games[
-        ["prior_to_game_Rank_Team_A", "prior_to_game_Rank_Team_B", "Rank_diff"]
+        ["prior_to_game_Rank_Team_A", "prior_to_game_Rank_Team_B", "Rank_diff", "Team_A_Name", "Team_B_Name"]
     ]
     y_A = played_games["Score_Team_A"]
     y_B = played_games["Score_Team_B"]
 
-    model_A = LinearRegression().fit(X_train, y_A)
-    model_B = LinearRegression().fit(X_train, y_B)
+    # Initialize CatBoost with categorical feature flags
+    model_A = CatBoostRegressor(iterations=150, learning_rate=0.05, depth=6, cat_features=["Team_A_Name", "Team_B_Name"], verbose=0)
+    model_B = CatBoostRegressor(iterations=150, learning_rate=0.05, depth=6, cat_features=["Team_A_Name", "Team_B_Name"], verbose=0)
+    
+    model_A.fit(X_train, y_A)
+    model_B.fit(X_train, y_B)
     return model_A, model_B
 
 def save_data(df_scores, csv_path="scores.csv"):

@@ -2,7 +2,7 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-from utils import load_and_prepare_data, train_prediction_models
+from utils import load_and_prepare_data, train_prediction_models, save_data
 
 # 1. Setup the browser tab configuration
 st.set_page_config(
@@ -34,76 +34,81 @@ tab1, tab2, tab3 = st.tabs(["🔮 Predict Match", "📝 Update Result", "📊 Vi
 with tab1:
     st.header("Predict a Matchup")
     
-    # Extract unique teams dynamically for mobile dropdown menus
-    available_teams = sorted(pd.concat([df_scores["Team_A_Name"], df_scores["Team_B_Name"]]).unique())
+    # Extract unique teams dynamically
+    available_teams = sorted(pd.concat([df_scores["Team_A_Name"], df_scores["Team_B_Name"]]).dropna().unique())
     
-    team_a = st.selectbox("Select Team A:", available_teams, index=0)
-    team_b = st.selectbox("Select Team B:", available_teams, index=1)
+    # NEW: Toggle to allow predicting unlisted/custom/TBC matches
+    is_custom_match = st.checkbox("➕ Predict a custom/unlisted match (e.g. TBC Finals)")
     
-    match_row = df_scores[(df_scores["Team_A_Name"] == team_a) & (df_scores["Team_B_Name"] == team_b)]
-    
-    if match_row.empty:
-        st.error(f"❌ Matchup '{team_a} vs {team_b}' not found in schedule.")
-    else:
-        # Get the row index so we know exactly where to save in the CSV
-        row_idx = match_row.index[0]
-        csv_rank_a = df_scores.loc[row_idx, "prior_to_game_Rank_Team_A"]
-        csv_rank_b = df_scores.loc[row_idx, "prior_to_game_Rank_Team_B"]
-        
-        # Track whether we need to block the prediction engine to collect missing data
+    if is_custom_match:
+        # Custom Mode: Let users enter anything manually
+        team_a = st.text_input("Enter Team A Name:", placeholder="e.g., France")
+        team_b = st.text_input("Enter Team B Name:", placeholder="e.g., Argentina")
+        rank_a = st.number_input("Enter Rank for Team A:", value=10.0, step=1.0, key="custom_rank_a")
+        rank_b = st.number_input("Enter Rank for Team B:", value=10.0, step=1.0, key="custom_rank_b")
         missing_data = False
+    else:
+        # Standard Mode: Read from your CSV schedule dropdowns
+        team_a = st.selectbox("Select Team A:", available_teams, index=0)
+        team_b = st.selectbox("Select Team B:", available_teams, index=1)
         
-        # Handle Team A missing ranking
-        if pd.isna(csv_rank_a):
+        match_row = df_scores[(df_scores["Team_A_Name"] == team_a) & (df_scores["Team_B_Name"] == team_b)]
+        
+        if match_row.empty:
+            st.error(f"❌ Matchup '{team_a} vs {team_b}' not found in schedule. Check the custom box above to predict it!")
             missing_data = True
-            new_a = st.number_input(f"⚠️ Rank for {team_a} missing. Enter to save:", value=10.0, key=f"fb_rank_{team_a}")
-            if st.button(f"💾 Save Rank for {team_a}", key=f"save_btn_{team_a}"):
-                df_scores.loc[row_idx, "prior_to_game_Rank_Team_A"] = float(new_a)
-                # Keep original data structure intact for the CSV save
-                cols_to_drop = ['Score_diff', 'Rank_diff', 'Team_A_Name', 'Team_B_Name']
-                df_to_save = df_scores.drop(columns=[c for c in cols_to_drop if c in df_scores.columns])
-                df_to_save.to_csv("scores.csv", index=False)
-                st.success(f"Saved {team_a} rank!")
-                st.rerun()
         else:
-            rank_a = csv_rank_a
+            row_idx = match_row.index[0]
+            csv_rank_a = df_scores.loc[row_idx, "prior_to_game_Rank_Team_A"]
+            csv_rank_b = df_scores.loc[row_idx, "prior_to_game_Rank_Team_B"]
+            missing_data = False
             
-        # Handle Team B missing ranking
-        if pd.isna(csv_rank_b):
-            missing_data = True
-            new_b = st.number_input(f"⚠️ Rank for {team_b} missing. Enter to save:", value=10.0, key=f"fb_rank_{team_b}")
-            if st.button(f"💾 Save Rank for {team_b}", key=f"save_btn_{team_b}"):
-                df_scores.loc[row_idx, "prior_to_game_Rank_Team_B"] = float(new_b)
-                cols_to_drop = ['Score_diff', 'Rank_diff', 'Team_A_Name', 'Team_B_Name']
-                df_to_save = df_scores.drop(columns=[c for c in cols_to_drop if c in df_scores.columns])
-                df_to_save.to_csv("scores.csv", index=False)
-                st.success(f"Saved {team_b} rank!")
-                st.rerun()
-        else:
-            rank_b = csv_rank_b
+            if pd.isna(csv_rank_a):
+                missing_data = True
+                new_a = st.number_input(f"⚠️ Rank for {team_a} missing. Enter to save:", value=10.0, key=f"fb_rank_{team_a}")
+                if st.button(f"💾 Save Rank for {team_a}", key=f"save_btn_{team_a}"):
+                    df_scores.loc[row_idx, "prior_to_game_Rank_Team_A"] = float(new_a)
+                    save_data(df_scores) # Using your utility save function
+                    st.success(f"Saved {team_a} rank!")
+                    st.rerun()
+            else:
+                rank_a = csv_rank_a
+                
+            if pd.isna(csv_rank_b):
+                missing_data = True
+                new_b = st.number_input(f"⚠️ Rank for {team_b} missing. Enter to save:", value=10.0, key=f"fb_rank_{team_b}")
+                if st.button(f"💾 Save Rank for {team_b}", key=f"save_btn_{team_b}"):
+                    df_scores.loc[row_idx, "prior_to_game_Rank_Team_B"] = float(new_b)
+                    save_data(df_scores)
+                    st.success(f"Saved {team_b} rank!")
+                    st.rerun()
+            else:
+                rank_b = csv_rank_b
 
-        # Display interface blocks based on data state
-        if missing_data:
-            st.warning("Please fill in and save the missing rankings above to generate a prediction.")
-        else:
-            if st.button("Generate Prediction", type="primary", key="main_prediction_btn"):
-                rank_diff = abs(rank_a - rank_b)
-                unplayed_match = pd.DataFrame([[rank_a, rank_b, rank_diff]], 
-                                              columns=["prior_to_game_Rank_Team_A", "prior_to_game_Rank_Team_B", "Rank_diff"])
-                
-                # Re-train models dynamically in background and predict
-                model_A, model_B = train_prediction_models(df_scores)
-                pred_A = round(model_A.predict(unplayed_match)[0])
-                pred_B = round(model_B.predict(unplayed_match)[0])
-                
-                # Clean results metrics grid
-                st.markdown("---")
-                res_col1, res_col2 = st.columns(2)
-                with res_col1:
-                    st.metric(label=f"{team_a} (Rank {int(rank_a)})", value=f"{pred_A} pts")
-                with res_col2:
-                    st.metric(label=f"{team_b} (Rank {int(rank_b)})", value=f"{pred_B} pts")
-                st.markdown("---")
+    # Prediction Engine Execution block
+    if not missing_data:
+        if st.button("Generate Prediction", type="primary", key="main_prediction_btn"):
+            rank_diff = abs(rank_a - rank_b)
+            
+            # Formulated exactly what CatBoost expects (including string team names)
+            unplayed_match = pd.DataFrame(
+                [[rank_a, rank_b, rank_diff, team_a, team_b]], 
+                columns=["prior_to_game_Rank_Team_A", "prior_to_game_Rank_Team_B", "Rank_diff", "Team_A_Name", "Team_B_Name"]
+            )
+            
+            model_A, model_B = train_prediction_models(df_scores)
+            
+            # Predict scores, ensuring no negative outputs
+            pred_A = max(0, round(model_A.predict(unplayed_match)[0]))
+            pred_B = max(0, round(model_B.predict(unplayed_match)[0]))
+            
+            st.markdown("---")
+            res_col1, res_col2 = st.columns(2)
+            with res_col1:
+                st.metric(label=f"{team_a} (Rank {int(rank_a)})", value=f"{pred_A} goals")
+            with res_col2:
+                st.metric(label=f"{team_b} (Rank {int(rank_b)})", value=f"{pred_B} goals")
+            st.markdown("---")
 
 # ==========================================
 # TAB 2: UPDATER
