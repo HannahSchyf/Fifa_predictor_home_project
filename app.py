@@ -158,7 +158,7 @@ with tab2:
     new_rank_a = st.text_input(f"New rank for {u_team_a} (Leave blank to keep current/default):", key="rank_a_input").strip()
     new_rank_b = st.text_input(f"New rank for {u_team_b} (Leave blank to keep current/default):", key="rank_b_input").strip()
     
-    if st.button("Save Game to CSV"):
+    if st.button("Save Game"):
         match_mask = (df_scores["Team_A_Name"] == u_team_a) & (df_scores["Team_B_Name"] == u_team_b)
         
         if not df_scores[match_mask].empty:
@@ -199,7 +199,7 @@ with tab3:
     else:
         # 1. NEW: Round Filter Sidebar/Dropdown for Analytics Tab
         all_rounds = ["All Rounds"] + sorted(list(plot_df["Round"].astype(str).unique()))
-        selected_round_filter = st.selectbox("🎯 Filter Analytics by Stage/Round:", all_rounds, key="analytics_round_filter")
+        selected_round_filter = st.selectbox("🎯 Filter by Round:", all_rounds, key="analytics_round_filter")
         
         # Apply the filter if something specific is chosen
         if selected_round_filter != "All Rounds":
@@ -285,11 +285,11 @@ with tab3:
         chart_data = []
         for _, row in plot_df.iterrows():
             chart_data.append({
-                "Matchup": f"{row['Match']} (R{row['Round']})",
-                "Actual Team A": row["Score_Team_A"],
-                "Predicted Team A": row["Pred_Team_A"],
-                "Actual Team B": row["Score_Team_B"],
-                "Predicted Team B": row["Pred_Team_B"],
+                "Matchup": f"{row['Match']} ({row['Round']})",
+                "Actual A": row["Score_Team_A"],
+                "Predicted A": row["Pred_Team_A"],
+                "Actual B": row["Score_Team_B"],
+                "Predicted B": row["Pred_Team_B"],
                 "Total Deviation": int(row["Total_Absolute_Error"])
             })
         
@@ -312,14 +312,14 @@ with tab3:
         bar_width = 0.35
         
         # Sum goals for simpler visual trend tracking (Actual combined vs Predicted combined)
-        actual_totals = display_df["Actual Team A"] + display_df["Actual Team B"]
-        predicted_totals = display_df["Predicted Team A"] + display_df["Predicted Team B"]
+        actual_totals = display_df["Actual A"] + display_df["Actual B"]
+        predicted_totals = display_df["Predicted A"] + display_df["Predicted B"]
         
         ax2.bar(x_indices - bar_width/2, actual_totals, bar_width, label="Actual Combined Goals", color="#28a745", alpha=0.85)
         ax2.bar(x_indices + bar_width/2, predicted_totals, bar_width, label="Predicted Combined Goals", color="#fd7e14", alpha=0.85)
         
         ax2.set_ylabel("Total Match Goals", fontsize=11, fontweight="bold")
-        ax2.set_title("Goal Production Comparison (Last 15 Games in Filter View)", fontsize=13, fontweight="bold", pad=15)
+        ax2.set_title("Goal Production Comparison", fontsize=13, fontweight="bold", pad=15)
         ax2.set_xticks(x_indices)
         ax2.set_xticklabels(display_df["Matchup"], rotation=45, ha="right", fontsize=9)
         ax2.legend()
