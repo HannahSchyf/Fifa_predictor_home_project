@@ -117,10 +117,11 @@ with tab1:
                     df_scores = pd.concat([df_scores, pd.DataFrame([new_row])], ignore_index=True)
                     
                     # Clean internal memory headers and write back to scores.csv file
-                    cols_to_drop = ['Score_diff', 'Rank_diff', 'Team_A_Name', 'Team_B_Name']
-                    df_to_save = df_scores.drop(columns=[c for c in cols_to_drop if c in df_scores.columns])
-                    df_to_save.to_csv("scores.csv", index=False)
-                    st.info(f"✨ Matchup registered into the tournament schedule: {team_a} vs {team_b} ({match_round})")
+                    # cols_to_drop = ['Score_diff', 'Rank_diff', 'Team_A_Name', 'Team_B_Name']
+                    # df_to_save = df_scores.drop(columns=[c for c in cols_to_drop if c in df_scores.columns])
+                    # df_to_save.to_csv("scores.csv", index=False)
+                    # st.info(f"✨ Matchup registered into the tournament schedule: {team_a} vs {team_b} ({match_round})")
+                    save_data(df_scores)
 
             rank_diff = abs(rank_a - rank_b)
             

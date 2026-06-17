@@ -1,13 +1,17 @@
 # utils.py
+import streamlit as st
 import pandas as pd
-from sklearn.linear_model import LinearRegression
 from catboost import CatBoostRegressor
+from streamlit_gsheets import GSheetsConnection
 
 def load_and_prepare_data(csv_path="scores.csv"):
-    """Loads the dataset, calculates differences, splits teams, and returns the DataFrame."""
+    """Loads the dataset from Google Sheets, calculates differences, splits teams, and returns the DataFrame."""
     try:
-        # Read the file
-        df_scores = pd.read_csv(csv_path)
+        # Establish native connection to Google Sheets
+        conn = st.connection("gsheets", type=GSheetsConnection)
+        
+        # Read the spreadsheet live from the cloud (ttl=0 ensures no stale caching)
+        df_scores = conn.read(ttl=0)
 
         # 1. Calculate the score and rank differences
         df_scores["Score_diff"] = abs(
@@ -23,11 +27,10 @@ def load_and_prepare_data(csv_path="scores.csv"):
             "Match"
         ].str.split("_vs_", expand=True)
 
-        # 3. CRITICAL: Pass the engineered DataFrame back to the rest of the project!
         return df_scores
 
-    except FileNotFoundError:
-        print(f"❌ Error: Data file '{csv_path}' not found.")
+    except Exception as e:
+        st.error(f"❌ Error loading cloud data: {e}")
         raise
 
 
@@ -65,10 +68,18 @@ def train_prediction_models(df_scores):
     return model_A, model_B
 
 def save_data(df_scores, csv_path="scores.csv"):
-    """Saves the modified DataFrame back to the CSV file, removing calculated columns."""
-    # We drop the dynamically generated columns so they don't bloat the raw CSV file
-    cols_to_drop = ['Score_diff', 'Rank_diff', 'Team_A_Name', 'Team_B_Name']
-    df_to_save = df_scores.drop(columns=[c for c in cols_to_drop if c in df_scores.columns])
-    
-    df_to_save.to_csv(csv_path, index=False)
-    print(f"💾 Successfully saved updates to {csv_path}!")
+    """Overwrites the Google Sheet rows with the modified tournament database."""
+    try:
+        conn = st.connection("gsheets", type=GSheetsConnection)
+        
+        cols_to_drop = ['Score_diff', 'Rank_diff', 'Team_A_Name', 'Team_B_Name']
+        df_to_save = df_scores.drop(columns=[c for c in cols_to_drop if c in df_scores.columns])
+        
+        # 1. Update rows in Google Sheets
+        conn.update(data=df_to_save)
+        
+        # 2. Clear Streamlit's data memory so it pulls the new match instantly
+        st.cache_data.clear()
+        
+    except Exception as e:
+        st.error(f"❌ Failed to save changes to Cloud: {e}")
