@@ -289,7 +289,7 @@ with tab3:
                 "Predicted Team A": row["Pred_Team_A"],
                 "Actual Team B": row["Score_Team_B"],
                 "Predicted Team B": row["Pred_Team_B"],
-                "Total Goal Deviation": int(row["Total_Absolute_Error"])
+                "Total Deviation": int(row["Total_Absolute_Error"])
             })
         
         summary_df = pd.DataFrame(chart_data)
