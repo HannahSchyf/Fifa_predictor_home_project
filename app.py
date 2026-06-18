@@ -428,7 +428,7 @@ with tab3:
         # 2. Dynamically set the width so the bars maintain their exact original size
         # Each match gets 0.6 inches. If there are many matches, it becomes very wide.
         base_width = 6
-        chart_width = max(base_width, num_matches * 0.35)
+        chart_width = max(base_width, num_matches * 0.25)
         
         # Structure, heights, and style remain exactly the same as your original
         fig2, ax2 = plt.subplots(figsize=(chart_width, 2.2))
@@ -449,10 +449,12 @@ with tab3:
         ax2.set_ylabel("Total Match Goals", fontsize=8, fontweight="bold")
 
         ax2.set_xticks(x_indices)
-        ax2.set_xticklabels(display_df["Matchup"], rotation=45, ha="right", fontsize=6)
+        ax2.set_xticklabels(display_df["Matchup"], rotation=45, ha="right", fontsize=5)
         ax2.grid(axis='y', linestyle=":", alpha=0.5)
         
         # Adjust layout tightly to make sure labels aren't cut off
+        padding = 0.6  # Adjust this number slightly if you want it tighter or wider
+        ax2.set_xlim(x_indices[0] - padding, x_indices[-1] + padding)
         plt.tight_layout()
         
         # 3. Create a clean horizontal scroll window using a Streamlit container with custom HTML
