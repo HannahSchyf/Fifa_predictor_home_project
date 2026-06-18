@@ -196,26 +196,39 @@ with tab3:
             st.info("No matches found for the selected round filter.")
             st.stop()
 
+        ROUND_COLORS = {
+            "Round 1": "#007bff",           # Blue
+            "Round 2": "#28a745",           # Green
+            "Round 3": "#fd7e14",           # Orange
+            "Round of 32": "#7D62BD",       # Dark Gray
+            "Round of 16": "#20c997",       # Teal
+            "Quarter-Finals": "#6f42c1",    # Purple
+            "Semi-Finals": "#e83e8c",       # Pink
+            "Third-Place Playoff": "#ffc107", # Yellow
+            "Final": "#dc3545"              # Red
+        }
+
         # Match Performance vs Rank Disparity Scatter Plot
         st.subheader("Match Performance vs Rank Disparity")
         fig, ax = plt.subplots(figsize=(8, 5))
         
-        ax.scatter(
-            plot_df["Score_diff"], 
-            plot_df["Rank_diff"], 
-            color="#007bff", 
-            s=120, 
-            edgecolors="#004085", 
-            linewidth=1.2, 
-            alpha=0.85, 
-            zorder=3,
-            label="Played Matches"
-        )
+        for round_name, group in plot_df.groupby("Round"):
+            current_color = ROUND_COLORS.get(str(round_name), "#6c757d")  # Default to gray if round not in dict
+            ax.scatter(
+                group["Score_diff"], 
+                group["Rank_diff"], 
+                color=current_color, 
+                s=120, 
+                edgecolors="#1a1a1a", 
+                linewidth=1.2, 
+                alpha=0.85, 
+                zorder=3,
+                label=str(round_name)
+            )
         
         for score, rank, match in zip(plot_df["Score_diff"], plot_df["Rank_diff"], plot_df["Match"]):
             offset = 0.18 if score >= 0 else -0.18
             align = 'left' if score >= 0 else 'right'
-            
             ax.text(
                 score + offset, 
                 rank, 
@@ -232,6 +245,15 @@ with tab3:
         ax.set_xlabel("Score Difference", fontsize=12, fontweight="bold", labelpad=10, color="#1a1a1a")
         ax.set_ylabel("Rank Difference", fontsize=12, fontweight="bold", labelpad=10, color="#1a1a1a")
         ax.grid(True, linestyle=":", alpha=0.6, color="#cccccc")
+        
+        # 🌟 Legend moved to the OUTSIDE top for Chart 1
+        ax.legend(
+            fontsize=9.5, 
+            loc="lower left",            
+            bbox_to_anchor=(0.0, 1.02),  
+            ncol=3,                      
+            frameon=False                
+        )
         st.pyplot(fig)
 
         # Combined Goals vs Rank Difference Scatter Plot
@@ -241,30 +263,51 @@ with tab3:
         fig3, ax3 = plt.subplots(figsize=(8, 5))
         plot_df["Combined_Goals"] = plot_df["Score_Team_A"] + plot_df["Score_Team_B"]
         
-        ax3.scatter(
-            plot_df["Combined_Goals"],
-            plot_df["Rank_diff"],
-            color="#6f42c1", 
-            s=120,
-            edgecolors="#4a154b",
-            linewidth=1.2,
-            alpha=0.85,
-            zorder=3
-        )
+        for round_name, group in plot_df.groupby("Round"):
+            current_color = ROUND_COLORS.get(str(round_name), "#6c757d")  # Default to gray if round not in dict
+            ax3.scatter(
+                group["Combined_Goals"],
+                group["Rank_diff"],
+                color=current_color, 
+                s=120,
+                edgecolors="#1a1a1a",
+                linewidth=1.2,
+                alpha=0.85,
+                zorder=3,
+                label=str(round_name)
+            )
         
-        for rank, goals, match in zip(plot_df["Combined_Goals"], plot_df["Rank_diff"], plot_df["Match"]):
+        # 🌟 Snug layout adjustment: Changed offset back to 0.6 so text sits close to the point
+        for goals,rank, match in zip(plot_df["Combined_Goals"], plot_df["Rank_diff"], plot_df["Match"]):
+            offset = 0.18 if goals >= 0 else -0.18
+            align = 'left' if goals >= 0 else 'right'
             ax3.text(
-                rank + 0.5, 
-                goals, 
+                goals + offset, 
+                rank, 
                 f" {match} ", 
-                fontsize=9, 
+                fontsize=9.5, 
+                fontweight="medium",
+                color="#212529",
+                alpha=0.9, 
                 verticalalignment='center',
-                bbox=dict(boxstyle="round,pad=0.15", fc="#ffffff", ec="#e0e0e0", lw=0.7, alpha=0.8)
+                horizontalalignment=align,
+                bbox=dict(boxstyle="round,pad=0.2", fc="#ffffff", ec="#e0e0e0", lw=0.8, alpha=0.85)
             )
             
-        ax3.set_xlabel("Combined Goals Scored", fontsize=12, fontweight="bold", labelpad=10)
-        ax3.set_ylabel("Rank Difference", fontsize=12, fontweight="bold", labelpad=10)
+        ax3.set_ylabel("Rank Difference", fontsize=12, fontweight="bold", labelpad=10, color="#1a1a1a")
+        ax3.set_xlabel("Combined Goals Scored", fontsize=12, fontweight="bold", labelpad=10, color="#1a1a1a")
+        
+        # 🌟 MATCHING COSMETICS: Force the exact faint, light-gray grid lines from the top plot
         ax3.grid(True, linestyle=":", alpha=0.6, color="#cccccc")
+        
+        # 🌟 Legend moved to the OUTSIDE top for Chart 1
+        ax3.legend(
+            fontsize=9.5, 
+            loc="lower left",            
+            bbox_to_anchor=(0.0, 1.02),  
+            ncol=3,                      
+            frameon=False                
+        )
         st.pyplot(fig3)
 
         # Model Accuracy Calculations using frozen history
