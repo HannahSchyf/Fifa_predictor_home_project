@@ -72,6 +72,7 @@ def save_data(df_scores, csv_path="scores.csv"):
     try:
         conn = st.connection("gsheets", type=GSheetsConnection)
         
+        # ONLY drop custom run-time memory metrics. Leave columns like Pred_Team_A / Pred_Team_B untouched!
         cols_to_drop = ['Score_diff', 'Rank_diff', 'Team_A_Name', 'Team_B_Name']
         df_to_save = df_scores.drop(columns=[c for c in cols_to_drop if c in df_scores.columns])
         
