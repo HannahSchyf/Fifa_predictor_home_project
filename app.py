@@ -57,7 +57,7 @@ with tab1:
         match_row = df_scores[(df_scores["Team_A_Name"] == team_a) & (df_scores["Team_B_Name"] == team_b)]
         
         if match_row.empty:
-            st.error(f"❌ Matchup '{team_a} vs {team_b}' not found in schedule. Check the custom box above to predict it!")
+            st.error(f"❌ Matchup '{team_a} vs {team_b}' not found in schedule!")
             missing_data = True
         else:
             # 🎯 FORCE missing_data to False so no extra input fields open up below
@@ -86,17 +86,6 @@ with tab1:
             with col_rank_b:
                 label_b = f"⚠️ Rank for {team_b} (Missing):" if is_b_missing else f"Rank for {team_b}:"
                 rank_b = st.number_input(label_b, value=default_b, step=1, key=f"edit_rank_{team_b}")
-                
-            # if pd.isna(csv_rank_b):
-            #     missing_data = True
-            #     new_b = st.number_input(f"⚠️ Rank for {team_b} missing. Enter to save:", value=10.0, key=f"fb_rank_{team_b}")
-            #     if st.button(f"💾 Save Rank for {team_b}", key=f"save_btn_{team_b}"):
-            #         df_scores.loc[row_idx, "prior_to_game_Rank_Team_B"] = float(new_b)
-            #         save_data(df_scores)
-            #         st.success(f"Saved {team_b} rank!")
-            #         st.rerun()
-            # else:
-            #     rank_b = csv_rank_b
 
     if not missing_data:
         if st.button("Generate Prediction", type="primary", key="main_prediction_btn"):
@@ -163,45 +152,53 @@ with tab2:
     score_a = st.number_input(f"{u_team_a} Final Score:", min_value=0, step=1, value=0, key="score_a_input")
     score_b = st.number_input(f"{u_team_b} Final Score:", min_value=0, step=1, value=0, key="score_b_input")
     
+    # Look up the existing matchup to fetch current sheet ranks
     match_mask = (df_scores["Team_A_Name"] == u_team_a) & (df_scores["Team_B_Name"] == u_team_b)
     match_row = df_scores[match_mask]
-
-    if not match_row.empty:
-        row_idx = match_row.index[0]
-        csv_rank_a = df_scores.loc[row_idx, "prior_to_game_Rank_Team_A"]
-        csv_rank_b = df_scores.loc[row_idx, "prior_to_game_Rank_Team_B"]
-        
-        # Resolve fallbacks if values are missing in the sheet
-        default_a = 10 if pd.isna(csv_rank_a) else int(csv_rank_a)
-        default_b = 10 if pd.isna(csv_rank_b) else int(csv_rank_b)
-    else:
-        # Fallback values if the user selected a matchup that doesn't exist yet
-        default_a = 10
-        default_b = 10
-
-    col_u_rank_a, col_u_rank_b = st.columns(2)
-    with col_u_rank_a:
-        new_rank_a = st.number_input(f"Update rank for {u_team_a}:", value=int(default_a), step=1, key=f"update_rank_{u_team_a}")
-    with col_u_rank_b:
-        new_rank_b = st.number_input(f"Update rank for {u_team_b}:", value=int(default_b), step=1, key=f"update_rank_{u_team_b}")
     
-    if st.button("Save Game Result"):
-        if not df_scores[match_mask].empty:
-            row_index = df_scores[match_mask].index[0]
+    if match_row.empty:
+        # 🚨 ALERT: Flag the missing match instantly and stop rendering the rest, exactly like Tab 1
+        st.error(f"❌ Matchup '{u_team_a} vs {u_team_b}' not found in schedule. Generate a prediction for it to register the game!")
+    else:
+        row_idx = match_row.index[0]
+
+        # Force a direct extraction from the correct row
+        raw_val_a = df_scores.loc[row_idx, "prior_to_game_Rank_Team_A"]
+        raw_val_b = df_scores.loc[row_idx, "prior_to_game_Rank_Team_B"]
+
+        try:
+            default_a = float(raw_val_a) if not pd.isna(raw_val_a) else 10.0
+        except (ValueError, TypeError):
+            default_a = 10.0
+
+        try:
+            default_b = float(raw_val_b) if not pd.isna(raw_val_b) else 10.0
+        except (ValueError, TypeError):
+            default_b = 10.0
+
+        # 🌟 ONLY show the ranks and save button if the matchup is valid!
+        col_u_rank_a, col_u_rank_b = st.columns(2)
+        with col_u_rank_a:
+            new_rank_a = st.number_input(f"Update rank for {u_team_a}:", value=int(default_a), step=1, key=f"ut_rank_val_{u_team_a}_team_a")
+        with col_u_rank_b:
+            new_rank_b = st.number_input(f"Update rank for {u_team_b}:", value=int(default_b), step=1, key=f"ut_rank_val_{u_team_b}_team_b")
+        
+        if st.button("Save Game Result", type="primary", key="save_game_result_final_btn"):
+            # Double check the row index remains solid
+            row_index = match_row.index[0]
             
             # Save final scores
-            df_scores.loc[row_index, "Score_Team_A"] = score_a
-            df_scores.loc[row_index, "Score_Team_B"] = score_b
+            df_scores.loc[row_index, "Score_Team_A"] = int(score_a)
+            df_scores.loc[row_index, "Score_Team_B"] = int(score_b)
             
-            # 🎯 Overwrites the row with the current input values (changed or unchanged)
+            # Overwrite the row with the current input values (changed or unchanged)
             df_scores.loc[row_index, "prior_to_game_Rank_Team_A"] = int(new_rank_a)
             df_scores.loc[row_index, "prior_to_game_Rank_Team_B"] = int(new_rank_b)
                 
             save_data(df_scores)
-            st.success(f"💾 Results Saved! {u_team_a} {score_a} - {score_b} {u_team_b}")
+            
+            st.success(f"💾 Results Saved!")
             st.rerun()
-        else:
-            st.error(f"❌ Matchup '{u_team_a} vs {u_team_b}' not found in your schedule database. Generate a prediction for it in Tab 1 first to register the game!")
 # ==========================================
 # TAB 3: ANALYTICS (Processes Saved History)
 # ==========================================
@@ -286,7 +283,7 @@ with tab3:
 
         # Combined Goals vs Rank Difference Scatter Plot
         st.markdown("---")
-        st.subheader("⚽ Total Match Goals scored vs Rank Disparity")
+        st.subheader("Total Match Goals scored vs Rank Disparity")
         
         fig3, ax3 = plt.subplots(figsize=(8, 5))
         plot_df["Combined_Goals"] = plot_df["Score_Team_A"] + plot_df["Score_Team_B"]
@@ -508,7 +505,6 @@ with tab3:
 # ==========================================
         # 🔥 TOP 3 FREQUENT SCORE LINE OUTCOMES
         # ==========================================
-        st.markdown("---")
         st.subheader("📊 Top 3 Most Frequent Score Lines")
 
         from collections import Counter
