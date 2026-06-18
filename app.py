@@ -60,33 +60,43 @@ with tab1:
             st.error(f"❌ Matchup '{team_a} vs {team_b}' not found in schedule. Check the custom box above to predict it!")
             missing_data = True
         else:
+            # 🎯 FORCE missing_data to False so no extra input fields open up below
+            missing_data = False
+            
             row_idx = match_row.index[0]
             csv_rank_a = df_scores.loc[row_idx, "prior_to_game_Rank_Team_A"]
             csv_rank_b = df_scores.loc[row_idx, "prior_to_game_Rank_Team_B"]
-            missing_data = False
             
-            # Use data rank if it exists, otherwise default to 10.0
-            default_a = 10.0 if pd.isna(csv_rank_a) else float(csv_rank_a)
-            default_b = 10.0 if pd.isna(csv_rank_b) else float(csv_rank_b)
+            is_a_missing = pd.isna(csv_rank_a)
+            is_b_missing = pd.isna(csv_rank_b)
             
-            # Always visible inputs that capture modifications seamlessly
-            st.info("💡 Adjust the team ranks below if needed. They will save when you predict!")
+            default_a = 10.0 if is_a_missing else float(csv_rank_a)
+            default_b = 10.0 if is_b_missing else float(csv_rank_b)
+            
+            if is_a_missing or is_b_missing:
+                st.warning("⚠️ Some team ranks are missing from the database. Please fill them in below before predicting.")
+            else:
+                st.info("💡 Adjust the team ranks below if needed. They will save when you predict!")
+                
+            # 🌟 This remains the ONLY set of inputs shown on the screen
             col_rank_a, col_rank_b = st.columns(2)
             with col_rank_a:
-                rank_a = st.number_input(f"Rank for {team_a}:", value=default_a, step=1.0, key=f"edit_rank_{team_a}")
+                label_a = f"⚠️ Rank for {team_a} (Missing):" if is_a_missing else f"Rank for {team_a}:"
+                rank_a = st.number_input(label_a, value=default_a, step=1.0, key=f"edit_rank_{team_a}")
             with col_rank_b:
-                rank_b = st.number_input(f"Rank for {team_b}:", value=default_b, step=1.0, key=f"edit_rank_{team_b}")
+                label_b = f"⚠️ Rank for {team_b} (Missing):" if is_b_missing else f"Rank for {team_b}:"
+                rank_b = st.number_input(label_b, value=default_b, step=1.0, key=f"edit_rank_{team_b}")
                 
-            if pd.isna(csv_rank_b):
-                missing_data = True
-                new_b = st.number_input(f"⚠️ Rank for {team_b} missing. Enter to save:", value=10.0, key=f"fb_rank_{team_b}")
-                if st.button(f"💾 Save Rank for {team_b}", key=f"save_btn_{team_b}"):
-                    df_scores.loc[row_idx, "prior_to_game_Rank_Team_B"] = float(new_b)
-                    save_data(df_scores)
-                    st.success(f"Saved {team_b} rank!")
-                    st.rerun()
-            else:
-                rank_b = csv_rank_b
+            # if pd.isna(csv_rank_b):
+            #     missing_data = True
+            #     new_b = st.number_input(f"⚠️ Rank for {team_b} missing. Enter to save:", value=10.0, key=f"fb_rank_{team_b}")
+            #     if st.button(f"💾 Save Rank for {team_b}", key=f"save_btn_{team_b}"):
+            #         df_scores.loc[row_idx, "prior_to_game_Rank_Team_B"] = float(new_b)
+            #         save_data(df_scores)
+            #         st.success(f"Saved {team_b} rank!")
+            #         st.rerun()
+            # else:
+            #     rank_b = csv_rank_b
 
     if not missing_data:
         if st.button("Generate Prediction", type="primary", key="main_prediction_btn"):
