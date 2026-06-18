@@ -313,7 +313,7 @@ with tab3:
                 is_upset = True
 
             chart_data.append({
-                "Matchup": f"{row['Match']} ({row['Round']})",
+                "Matchup": f"{row['Match']}",
                 "Actual Score": f"{int(row['Score_Team_A'])} - {int(row['Score_Team_B'])}",
                 "Predicted Score": f"{int(row['Pred_Team_A'])} - {int(row['Pred_Team_B'])}",
                 "Predicted Winner": predicted_winner,
@@ -369,17 +369,31 @@ with tab3:
         with badge_col3:
             st.metric(label="💔 Broken Deadlocks", value=predicted_winner_but_was_draw)
             
-        # Grouped bar chart comparison
+# ==========================================
+        # 📊 TRUE SCROLLABLE VERTICAL BAR CHART
+        # ==========================================
         st.markdown("---")
-        fig2, ax2 = plt.subplots(figsize=(10, 5))
         
-        display_df = summary_df.tail(15) if len(summary_df) > 15 else summary_df
-        x_indices = np.arange(len(display_df))
+        # 1. Use ALL games instead of trimming to 15
+        display_df = summary_df.copy()
+        num_matches = len(display_df)
+        
+        # 2. Dynamically set the width so the bars maintain their exact original size
+        # Each match gets 0.6 inches. If there are many matches, it becomes very wide.
+        base_width = 8
+        chart_width = max(base_width, num_matches * 0.4)
+        
+        # Structure, heights, and style remain exactly the same as your original
+        fig2, ax2 = plt.subplots(figsize=(chart_width, 5))
+        
+        x_indices = np.arange(num_matches)
         bar_width = 0.35
         
+        # Parse totals back out for the bar chart
         actual_totals = display_df["Actual Score"].apply(lambda s: sum(map(int, s.split(" - "))))
         predicted_totals = display_df["Predicted Score"].apply(lambda s: sum(map(int, s.split(" - "))))
         
+        # Your original vertical bars preserved exactly
         ax2.bar(x_indices - bar_width/2, actual_totals, bar_width, label="Actual Combined Goals", color="#28a745", alpha=0.85)
         ax2.bar(x_indices + bar_width/2, predicted_totals, bar_width, label="Predicted Combined Goals", color="#fd7e14", alpha=0.85)
         
@@ -390,4 +404,25 @@ with tab3:
         ax2.legend()
         ax2.grid(axis='y', linestyle=":", alpha=0.5)
         
-        st.pyplot(fig2)
+        # Adjust layout tightly to make sure labels aren't cut off
+        plt.tight_layout()
+        
+        # 3. Create a clean horizontal scroll window using a Streamlit container with custom HTML
+        # This keeps the layout container at 100% page width, but allows the wide chart inside to scroll sideways!
+        import io
+        import base64
+        
+        # Save plot to a buffer to embed as an image string
+        buf = io.BytesIO()
+        fig2.savefig(buf, format="png", bbox_inches="tight")
+        buf.seek(0)
+        img_base64 = base64.b64encode(buf.read()).decode("utf-8")
+        plt.close(fig2)  # Clean up memory
+        
+        # Display via scrollable HTML div element
+        html_code = f"""
+        <div style="overflow-x: auto; overflow-y: hidden; white-space: nowrap; width: 100%; border: 1px solid #e6e9ef; padding: 10px; border-radius: 5px;">
+            <img src="data:image/png;base64,{img_base64}" style="max-width: none; height: auto;"/>
+        </div>
+        """
+        st.components.v1.html(html_code, height=530)
