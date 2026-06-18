@@ -242,8 +242,8 @@ with tab3:
         plot_df["Combined_Goals"] = plot_df["Score_Team_A"] + plot_df["Score_Team_B"]
         
         ax3.scatter(
-            plot_df["Rank_diff"],
             plot_df["Combined_Goals"],
+            plot_df["Rank_diff"],
             color="#6f42c1", 
             s=120,
             edgecolors="#4a154b",
@@ -252,7 +252,7 @@ with tab3:
             zorder=3
         )
         
-        for rank, goals, match in zip(plot_df["Rank_diff"], plot_df["Combined_Goals"], plot_df["Match"]):
+        for rank, goals, match in zip(plot_df["Combined_Goals"], plot_df["Rank_diff"], plot_df["Match"]):
             ax3.text(
                 rank + 0.5, 
                 goals, 
@@ -262,8 +262,8 @@ with tab3:
                 bbox=dict(boxstyle="round,pad=0.15", fc="#ffffff", ec="#e0e0e0", lw=0.7, alpha=0.8)
             )
             
-        ax3.set_xlabel("Rank Difference", fontsize=12, fontweight="bold", labelpad=10)
-        ax3.set_ylabel("Combined Goals Scored", fontsize=12, fontweight="bold", labelpad=10)
+        ax3.set_xlabel("Combined Goals Scored", fontsize=12, fontweight="bold", labelpad=10)
+        ax3.set_ylabel("Rank Difference", fontsize=12, fontweight="bold", labelpad=10)
         ax3.grid(True, linestyle=":", alpha=0.6, color="#cccccc")
         st.pyplot(fig3)
 
