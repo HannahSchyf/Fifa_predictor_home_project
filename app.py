@@ -65,16 +65,17 @@ with tab1:
             csv_rank_b = df_scores.loc[row_idx, "prior_to_game_Rank_Team_B"]
             missing_data = False
             
-            if pd.isna(csv_rank_a):
-                missing_data = True
-                new_a = st.number_input(f"⚠️ Rank for {team_a} missing. Enter to save:", value=10.0, key=f"fb_rank_{team_a}")
-                if st.button(f"💾 Save Rank for {team_a}", key=f"save_btn_{team_a}"):
-                    df_scores.loc[row_idx, "prior_to_game_Rank_Team_A"] = float(new_a)
-                    save_data(df_scores)
-                    st.success(f"Saved {team_a} rank!")
-                    st.rerun()
-            else:
-                rank_a = csv_rank_a
+            # Use data rank if it exists, otherwise default to 10.0
+            default_a = 10.0 if pd.isna(csv_rank_a) else float(csv_rank_a)
+            default_b = 10.0 if pd.isna(csv_rank_b) else float(csv_rank_b)
+            
+            # Always visible inputs that capture modifications seamlessly
+            st.info("💡 Adjust the team ranks below if needed. They will save when you predict!")
+            col_rank_a, col_rank_b = st.columns(2)
+            with col_rank_a:
+                rank_a = st.number_input(f"Rank for {team_a}:", value=default_a, step=1.0, key=f"edit_rank_{team_a}")
+            with col_rank_b:
+                rank_b = st.number_input(f"Rank for {team_b}:", value=default_b, step=1.0, key=f"edit_rank_{team_b}")
                 
             if pd.isna(csv_rank_b):
                 missing_data = True
@@ -122,6 +123,9 @@ with tab1:
                 }
                 df_scores = pd.concat([df_scores, pd.DataFrame([new_row])], ignore_index=True)
             else:
+                # Force updates to overwrite data parameters on click
+                df_scores.loc[row_idx, "prior_to_game_Rank_Team_A"] = float(rank_a)
+                df_scores.loc[row_idx, "prior_to_game_Rank_Team_B"] = float(rank_b)
                 df_scores.loc[row_idx, "Pred_Team_A"] = int(pred_A)
                 df_scores.loc[row_idx, "Pred_Team_B"] = int(pred_B)
             
