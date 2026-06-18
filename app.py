@@ -325,7 +325,8 @@ with tab3:
         summary_df = pd.DataFrame(chart_data)
         
         st.subheader("📝 Outcome Analysis")
-        st.caption("🟧 = Lower ranked team won | 🟦 = Draw with Rank Diff > 40")
+        st.caption("🟧 = Lower ranked team won")
+        st.caption("🟦 = Draw with Rank Diff > 40")
         
         columns_to_show = ["Matchup", "Actual Score", "Predicted Score", "Predicted Winner", "Actual Winner", "Rank Difference"]
         visible_df = summary_df[columns_to_show].copy()
@@ -374,7 +375,8 @@ with tab3:
         # ==========================================
         st.markdown("---")
         st.subheader("Goal Prediction Comparison")
-        st.caption("🟩 = Actual Combined Goals | 🟧 = Predicted Combined Goals")
+        st.caption("🟩 = Actual Combined Goals")
+        st.caption("🟧 = Predicted Combined Goals")
         
         # 1. Use ALL games instead of trimming to 15
         display_df = summary_df.copy()
@@ -386,8 +388,8 @@ with tab3:
         chart_width = max(base_width, num_matches * 0.35)
         
         # Structure, heights, and style remain exactly the same as your original
-        fig2, ax2 = plt.subplots(figsize=(chart_width, 3.2))
-        fig2.subplots_adjust(bottom=0.35)
+        fig2, ax2 = plt.subplots(figsize=(chart_width, 2.2))
+        fig2.subplots_adjust(bottom=0.42)
         
         x_indices = np.arange(num_matches)
         bar_width = 0.35
