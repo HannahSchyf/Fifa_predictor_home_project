@@ -325,7 +325,7 @@ with tab3:
         summary_df = pd.DataFrame(chart_data)
         
         st.subheader("📝 Outcome Analysis")
-        st.caption("🟧 Orange = Lower ranked team won | 🟦 Blue = Draw with Rank Diff > 40")
+        st.caption("🟧 = Lower ranked team won | 🟦 = Draw with Rank Diff > 40")
         
         columns_to_show = ["Matchup", "Actual Score", "Predicted Score", "Predicted Winner", "Actual Winner", "Rank Difference"]
         visible_df = summary_df[columns_to_show].copy()
@@ -373,6 +373,8 @@ with tab3:
         # 📊 TRUE SCROLLABLE VERTICAL BAR CHART
         # ==========================================
         st.markdown("---")
+        st.subheader("Goal Prediction Comparison")
+        st.caption("🟩 = Actual Combined Goals | 🟧 = Predicted Combined Goals")
         
         # 1. Use ALL games instead of trimming to 15
         display_df = summary_df.copy()
@@ -380,11 +382,12 @@ with tab3:
         
         # 2. Dynamically set the width so the bars maintain their exact original size
         # Each match gets 0.6 inches. If there are many matches, it becomes very wide.
-        base_width = 8
-        chart_width = max(base_width, num_matches * 0.4)
+        base_width = 6
+        chart_width = max(base_width, num_matches * 0.35)
         
         # Structure, heights, and style remain exactly the same as your original
-        fig2, ax2 = plt.subplots(figsize=(chart_width, 5))
+        fig2, ax2 = plt.subplots(figsize=(chart_width, 3.2))
+        fig2.subplots_adjust(bottom=0.35)
         
         x_indices = np.arange(num_matches)
         bar_width = 0.35
@@ -392,16 +395,16 @@ with tab3:
         # Parse totals back out for the bar chart
         actual_totals = display_df["Actual Score"].apply(lambda s: sum(map(int, s.split(" - "))))
         predicted_totals = display_df["Predicted Score"].apply(lambda s: sum(map(int, s.split(" - "))))
-        
+        max_goals = int(max(actual_totals.max(), predicted_totals.max())) + 1
+        ax2.set_yticks(range(0, max_goals))
         # Your original vertical bars preserved exactly
         ax2.bar(x_indices - bar_width/2, actual_totals, bar_width, label="Actual Combined Goals", color="#28a745", alpha=0.85)
         ax2.bar(x_indices + bar_width/2, predicted_totals, bar_width, label="Predicted Combined Goals", color="#fd7e14", alpha=0.85)
         
-        ax2.set_ylabel("Total Match Goals", fontsize=11, fontweight="bold")
-        ax2.set_title("Goal Production Comparison", fontsize=13, fontweight="bold", pad=15)
+        ax2.set_ylabel("Total Match Goals", fontsize=8, fontweight="bold")
+
         ax2.set_xticks(x_indices)
-        ax2.set_xticklabels(display_df["Matchup"], rotation=45, ha="right", fontsize=9)
-        ax2.legend()
+        ax2.set_xticklabels(display_df["Matchup"], rotation=45, ha="right", fontsize=6)
         ax2.grid(axis='y', linestyle=":", alpha=0.5)
         
         # Adjust layout tightly to make sure labels aren't cut off
@@ -414,7 +417,7 @@ with tab3:
         
         # Save plot to a buffer to embed as an image string
         buf = io.BytesIO()
-        fig2.savefig(buf, format="png", bbox_inches="tight")
+        fig2.savefig(buf, format="png", bbox_inches="tight",dpi=120)
         buf.seek(0)
         img_base64 = base64.b64encode(buf.read()).decode("utf-8")
         plt.close(fig2)  # Clean up memory
@@ -425,4 +428,4 @@ with tab3:
             <img src="data:image/png;base64,{img_base64}" style="max-width: none; height: auto;"/>
         </div>
         """
-        st.components.v1.html(html_code, height=530)
+        st.components.v1.html(html_code, height=420, scrolling=False)
