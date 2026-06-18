@@ -178,7 +178,7 @@ with tab2:
 # TAB 3: ANALYTICS (Processes Saved History)
 # ==========================================
 with tab3:
-    st.header("Historical Tournament Insights")
+    st.header("Tournament Insights")
     
     # Filter only games that have been completed/played AND have a prediction score saved
     plot_df = df_scores[df_scores["Score_Team_A"].notna() & df_scores["Pred_Team_A"].notna()].copy()
@@ -325,7 +325,7 @@ with tab3:
         summary_df = pd.DataFrame(chart_data)
         
         st.subheader("📝 Outcome Analysis")
-        st.caption("💡 Legend: 🟧 Orange = Upset (Lower ranked team won) | 🟦 Blue = David vs Goliath Draw (Draw with Rank Diff > 40)")
+        st.caption("🟧 Orange = Lower ranked team won | 🟦 Blue = Draw with Rank Diff > 40")
         
         columns_to_show = ["Matchup", "Actual Score", "Predicted Score", "Predicted Winner", "Actual Winner", "Rank Difference"]
         visible_df = summary_df[columns_to_show].copy()
